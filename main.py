@@ -1,5 +1,6 @@
 import os
 import math
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,8 @@ app.add_middleware(
 )
 
 MATERIALS = {}
+MODEL_LOADING = False
+MODEL_LOAD_ERROR = None
 DATASET_DIR = Path(__file__).resolve().parent / "datasets"
 
 # Put the matching CSV files in backend/datasets/ before deploying.
@@ -157,6 +160,14 @@ def root():
 
 @app.get("/health")
 def health():
+    if MODEL_LOADING:
+        return {"status": "loading_models", "loaded_materials": len(MATERIALS)}
+    if MODEL_LOAD_ERROR:
+        return {
+            "status": "model_load_error",
+            "loaded_materials": len(MATERIALS),
+            "error": MODEL_LOAD_ERROR,
+        }
     return {"status": "ok", "loaded_materials": len(MATERIALS)}
 
 @app.get("/api/materials")
@@ -185,12 +196,45 @@ def load_bundled_materials():
             print(f"WARNING: material dataset not found: {missing_path}")
         print("Add the configured CSV files to backend/datasets/ and redeploy to enable those materials.")
 
+def _load_materials_in_background():
+    """Train models without blocking Uvicorn from binding its network port."""
+    global MODEL_LOADING, MODEL_LOAD_ERROR
+    try:
+        load_bundled_materials()
+        if not MATERIALS:
+            MODEL_LOAD_ERROR = (
+                "No material models loaded. Check that configured CSV files exist "
+                "under backend/datasets/ and contain the required columns."
+            )
+        else:
+            MODEL_LOAD_ERROR = None
+    except Exception as exc:
+        MODEL_LOAD_ERROR = str(exc)
+        print(f"ERROR while loading material models: {exc}", flush=True)
+    finally:
+        MODEL_LOADING = False
+        print(
+            f"Material initialization finished. Loaded {len(MATERIALS)} model(s).",
+            flush=True
+        )
+
 @app.on_event("startup")
-def startup_load_materials():
-    load_bundled_materials()
+async def startup_load_materials():
+    """Start training in the background so the web server can bind its port."""
+    global MODEL_LOADING, MODEL_LOAD_ERROR
+    MODEL_LOADING = True
+    MODEL_LOAD_ERROR = None
+    asyncio.create_task(asyncio.to_thread(_load_materials_in_background))
 
 @app.post("/api/optimize")
 def optimize(req: OptimizeRequest):
+    if MODEL_LOADING:
+        raise HTTPException(
+            status_code=503,
+            detail="Material models are still training after startup. Please wait briefly and try again."
+        )
+    if MODEL_LOAD_ERROR and not MATERIALS:
+        raise HTTPException(status_code=503, detail=f"Material models failed to load: {MODEL_LOAD_ERROR}")
     if req.material_name not in MATERIALS:
         raise HTTPException(status_code=404, detail="Material model is not loaded. Check the bundled datasets and backend logs.")
     material_model = MATERIALS[req.material_name]
