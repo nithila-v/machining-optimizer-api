@@ -96,20 +96,6 @@ def train_one_material(material_name: str, df: pd.DataFrame):
         X, y_force, y_power, test_size=0.2, random_state=42
     )
 
-    # Keep the source script's 5-fold power cross-validation pipeline.
-    cv = KFold(n_splits=5, shuffle=True, random_state=42)
-    cv_power_model = Pipeline([
-        ("scaler", StandardScaler()),
-        ("gpr", GaussianProcessRegressor(
-            kernel=make_kernel(), n_restarts_optimizer=5,
-            normalize_y=True, random_state=42, alpha=1e-6
-        ))
-    ])
-    scores = cross_validate(
-        cv_power_model, X, y_power, cv=cv,
-        scoring={"mae": "neg_mean_absolute_error", "r2": "r2"},
-        n_jobs=1
-    )
 
     # Fit scaling on training data only, as in the uploaded script.
     scaler = StandardScaler()
@@ -117,14 +103,14 @@ def train_one_material(material_name: str, df: pd.DataFrame):
     X_test_scaled = scaler.transform(X_test)
 
     gpr_force = GaussianProcessRegressor(
-        kernel=make_kernel(), n_restarts_optimizer=5,
+        kernel=make_kernel(), n_restarts_optimizer=0,
         normalize_y=True, random_state=42, alpha=1e-6
     )
     gpr_force.fit(X_train_scaled, F_train)
     F_pred, F_std = gpr_force.predict(X_test_scaled, return_std=True)
 
     gpr_power = GaussianProcessRegressor(
-        kernel=make_kernel(), n_restarts_optimizer=5,
+        kernel=make_kernel(), n_restarts_optimizer=0,
         normalize_y=True, random_state=42, alpha=1e-6
     )
     gpr_power.fit(X_train_scaled, P_train)
@@ -136,9 +122,7 @@ def train_one_material(material_name: str, df: pd.DataFrame):
         "Force R2": float(r2_score(F_test, F_pred)),
         "Power MAE (kW)": float(mean_absolute_error(P_test, P_pred)),
         "Power RMSE (kW)": float(np.sqrt(mean_squared_error(P_test, P_pred))),
-        "Power R2": float(r2_score(P_test, P_pred)),
-        "Power 5-fold CV MAE (kW)": float(-scores["test_mae"].mean()),
-        "Power 5-fold CV R2": float(scores["test_r2"].mean())
+        "Power R2": float(r2_score(P_test, P_pred))
     }
     return {
         "data": df, "scaler": scaler, "force_model": gpr_force,
