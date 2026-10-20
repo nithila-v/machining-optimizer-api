@@ -17,8 +17,8 @@ from sklearn.gaussian_process.kernels import Matern, ConstantKernel, WhiteKernel
 
 app = FastAPI(title="Machining Optimizer GPR API", version="1.1.0")
 
-# Set FRONTEND_ORIGIN to your exact GitHub Pages origin after deployment.
-origins = [x.strip() for x in os.getenv("FRONTEND_ORIGIN", "*").split(",") if x.strip()]
+
+origins = [x.strip() for x in os.getenv("https://nithila-v.github.io/machining-optimizer-pwa/", "*").split(",") if x.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
