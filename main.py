@@ -243,7 +243,7 @@ def optimize(req: OptimizeRequest):
         pass_depths = [float(candidate_doc)] * (pass_count - 1) + [final_pass_doc]
 
         for cutting_speed, feed_per_rev, angle_deg, kc11, mc in setting_rows:
-            spindle_rpm = 1000.0 * float(cutting_speed) / (np.pi * req.tool_diameter_mm)
+            spindle_rpm = 1000.0 * float(cutting_speed) / (np.pi * req.workpiece_diameter_mm)
             feed_mm_min = float(feed_per_rev) * spindle_rpm
             if feed_mm_min <= 0:
                 continue
