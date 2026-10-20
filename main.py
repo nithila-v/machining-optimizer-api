@@ -111,7 +111,7 @@ class PhysicsGPR:
         self.scaler = StandardScaler().fit(X)
         Xs = self.scaler.transform(X)
         self.gpr = GaussianProcessRegressor(
-            kernel=make_kernel(Xs.shape[1]), n_restarts_optimizer=2,
+            kernel=make_kernel(Xs.shape[1]), n_restarts_optimizer=0,
             normalize_y=True, random_state=42, alpha=1e-6
         )
         self.gpr.fit(Xs, np.asarray(y) - self._prior(speed, f_phys))
