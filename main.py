@@ -59,7 +59,7 @@ GROUP_COLUMN_CANDIDATES = ["run id", "run", "experiment", "experiment id", "tria
 # "none"    : plain 3-input GP, no physics                           -> ablation
 PRIMARY_MODE = "residual"
 ALL_MODES = ["residual", "feature", "none"]
-RUN_ABLATION = os.getenv("RUN_ABLATION", "1") == "1"
+RUN_ABLATION = os.getenv("RUN_ABLATION", "0") == "0"
 COVERAGE_LEVELS = [0.50, 0.80, 0.90, 0.95]
 
 
